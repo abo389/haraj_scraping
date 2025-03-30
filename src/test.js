@@ -46,7 +46,7 @@ const fs = require( 'fs' );
 
     fs.writeFileSync( './output/items.json', JSON.stringify( items ) );
   }
-  await ScrapInfinety( page, 100 );
+  await ScrapInfinety( page, 10 );
 
-  await browser.close();
+  // await browser.close();
 })()

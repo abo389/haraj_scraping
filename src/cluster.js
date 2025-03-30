@@ -1,39 +1,99 @@
 import extractData from '../functions/extractData.js';
 import { Cluster } from 'puppeteer-cluster';
 import fs from 'fs';
+// C:\Program Files\Google\Chrome\Application\chrome.exe
 
-const URLS = JSON.parse( fs.readFileSync( './output/urls.json', 'utf8' ) );
+// Read URLs safely
+const urlsFile = './output/urls.json';
+let URLS = [];
+
+
+
+if ( fs.existsSync( urlsFile ) )
+{
+  try
+  {
+    URLS = JSON.parse( fs.readFileSync( urlsFile, 'utf8' ) );
+    if ( !Array.isArray( URLS ) || URLS.length === 0 )
+    {
+      console.error( "Error: urls.json is empty or not an array." );
+      process.exit( 1 );
+    }
+  } catch ( error )
+  {
+    console.error( "Error parsing urls.json:", error.message );
+    process.exit( 1 );
+  }
+} else
+{
+  console.error( "Error: urls.json file not found." );
+  process.exit( 1 );
+}
 
 ( async () =>
 {
   const items = [];
   const cluster = await Cluster.launch( {
     concurrency: Cluster.CONCURRENCY_PAGE,
+    maxConcurrency: 1,
     monitor: true,
-    maxConcurrency: 5
+    puppeteerOptions: {
+      // executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+      // userDataDir: "C:\\Users\\abdulrahman\\AppData\\Local\\Google\\Chrome\\User Data",
+      // args: [ "--profile-directory=Default" ],
+      // headless: false,
+      defaultViewport: null,
+    }
   } );
 
-  for ( const url of URLS ) cluster.queue( url );
-
-  // error handling
+  // Error handling
   cluster.on( 'taskerror', ( err, data, willRetry ) =>
   {
     if ( willRetry )
     {
-      console.warn( `Encountered an error while crawling ${data}. ${err.message}\nThis job will be retried` );
-    }
-    else
+      console.warn( `Encountered an error while crawling ${ data }. ${ err.message }\nThis job will be retried` );
+    } else
     {
-      console.error( `Failed to crawl ${data}: ${err.message}` );
+      console.error( `Failed to crawl ${ data }: ${ err.message }` );
     }
   } );
-  
+
+  // Define cluster task
   await cluster.task( async ( { page, data: url } ) =>
   {
-    items.push(await extractData(page, url))
+    try
+    {
+      let data = await extractData( page, url );
+      if ( data )
+      {
+        items.push( data );
+      } else
+      {
+        console.warn( `No data extracted from ${ url }` );
+      }
+    } catch ( error )
+    {
+      console.error( `Error processing ${ url }: ${ error.message }` );
+    }
   } );
-  
+
+  // Queue all URLs
+  for ( const url of URLS )
+  {
+    cluster.queue( url );
+  }
+
   await cluster.idle();
   await cluster.close();
-  fs.writeFileSync( './output/cluster.json', JSON.stringify( items ) );
+
+  // Save extracted data
+  if ( items.length > 0 )
+  {
+    fs.writeFileSync( './output/cluster.json', JSON.stringify( items, null, 2 ) );
+    console.log( `✅ Successfully saved ${ items.length } extracted items.` );
+    console.log(items.filter(e => e.description_en == 'N/A').length)
+  } else
+  {
+    console.warn( "⚠️ No items were extracted." );
+  }
 } )();
