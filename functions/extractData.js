@@ -1,4 +1,9 @@
-import convertArabicRelativeTimeToISO from "./convertArabicRelativeTimeToISO.js";
+import convertEnglishRelativeTimeToISO from "./convertEnglishRelativeTimeToISO.js";
+
+async function s (s)
+{
+    return await page.evaluate( () => document.querySelector( s )?.textContent );
+}
 
 const cookie = {
   name: 'Next-Locale',
@@ -13,31 +18,41 @@ export default async function extractData ( page, url )
   await page.setCookie( cookie );
   await page.goto( url, { waitUntil: "load" } );
 
-  let title = "N/A", city = "N/A", description = "N/A", description_en = "N/A", time = "N/A", price = "N/A";
-  let tags = [], imgs = [], reviews = [];
+  const data = {
+    title: "N/A",
+    city: "N/A",
+    price: "N/A",
+    tags: [],
+    imgs: [],
+    reviews: [],
+    phone: [],
+    author: {
+      name: "N/A",
+      url: "N/A"
+    },
+    time: {
+      native: "N/A",
+      iso: "N/A"
+    },
+    description: {
+      ar: "N/A",
+      en: "N/A" 
+    }
+  }
 
-  try
-  {
-    title = await page.evaluate( () => document.querySelector( 'h1' )?.textContent || "N/A" );
-  } catch ( error ) { }
-
-  try
-  {
-    city = await page.evaluate( () => document.querySelector( 'a > span.city' )?.textContent || "N/A" );
-  } catch ( error ) { }
-
-  try
-  {
-    price = await page.evaluate( () => document.querySelector( 'strong.text-text-primary' )?.textContent || "N/A" );
-  } catch ( error ) { }
+  data.city = await s( 'a > span.city' );
+  if(data.city === "N/A") return null;
+  data.title = await s( 'h1' );
+  data.price = await s( 'strong.text-text-primary' );
+  data.description.ar = await s( 'article[data-testid="post-article"]' );
 
   try
   {
     if ( await page.$( 'p.block.max-w-full.overflow-hidden.break-words' ) )
     {
-      reviews = await page.evaluate( () =>
+      data.reviews = await page.evaluate( () =>
         Array.from( document.querySelectorAll( 'p.block.max-w-full.overflow-hidden.break-words' ) )
-          .map( comment => comment.textContent )
+          .map( comment => comment?.textContent )
       );
     }
   } catch ( error ) { }
@@ -46,16 +61,11 @@ export default async function extractData ( page, url )
   {
     if ( await page.$( 'div.items-enter.bg-background-card.mt-5.flex.w-full.flex-wrap.justify-start.rounded-xl.px-7.py-5 > a' ) )
     {
-      tags = await page.evaluate( () =>
+      data.tags = await page.evaluate( () =>
         Array.from( document.querySelectorAll( 'div.items-enter.bg-background-card.mt-5.flex.w-full.flex-wrap.justify-start.rounded-xl.px-7.py-5 > a' ) )
           .map( tag => tag.textContent )
       );
     }
-  } catch ( error ) { }
-
-  try
-  {
-    description = await page.evaluate( () => document.querySelector( 'article[data-testid="post-article"]' )?.textContent || "N/A" );
   } catch ( error ) { }
 
   try
@@ -73,7 +83,7 @@ export default async function extractData ( page, url )
       }
     } );
     await page.waitForSelector( 'article[data-testid="post-article"].moveLeft', { visible: true, timeout: 5000 } );
-    description_en = await page.evaluate( () =>
+    data.description.en = await page.evaluate( () =>
       document.querySelector( 'article[data-testid="post-article"].moveLeft' )?.textContent || "N/A"
     );
   } catch ( error ) { }
@@ -81,27 +91,52 @@ export default async function extractData ( page, url )
 
   try
   {
-    if ( await page.$( 'span[data-testid="post-time"]' ) )
+    data.time.native = await page.evaluate( () =>
     {
-      time = await page.evaluate( () => document.querySelector( 'span[data-testid="post-time"]' ).textContent );
-      if ( time && time !== "N/A" )
+      const selectors = [
+        'span[data-testid="post-time"]',
+        'span > div > div > span'
+      ];
+      for ( const selector of selectors )
       {
-        time = convertArabicRelativeTimeToISO( time );
+        const element = document.querySelector( selector );
+        if ( element && element.textContent.trim() )
+        {
+          return element.textContent.trim();
+        }
       }
-    }
+      return "N/A";
+    } );
+    if ( data.time.native !== "N/A" ) data.time.iso = convertEnglishRelativeTimeToISO( data.time.native );
   } catch ( error ) { }
 
   try
   {
     if ( await page.$( 'img[data-nimg="1"]' ) )
     {
-      imgs = await page.evaluate( () =>
+      data.imgs = await page.evaluate( () =>
         Array.from( document.querySelectorAll( 'img[data-nimg="1"]' ) )
           .map( img => img.src )
-          .filter( img => img && img.startsWith( "http" ) ) // Remove empty/broken links
+          .filter( img => img && img.startsWith( "http" ) )
       );
     }
   } catch ( error ) { }
 
-  return { title, city, price, time, description, description_en, url, tags, reviews, imgs };
+  try
+  {
+    if ( data.description.en !== "N/A" )
+    {
+      const regex = /\b05\d{8}\b/g;
+      const matches = data.description.en.match( regex );
+      if ( matches ) data.phone = [ ...matches ];
+    }
+  } catch ( error ) { }
+
+  try
+  {
+    data.author.name = await page.evaluate( () => document.querySelector( 'a[data-testid="post-author"]' )?.textContent || "N/A" );
+    data.author.url = await page.evaluate( () => document.querySelector( 'a[data-testid="post-author"]' )?.href || "N/A" );
+  } catch ( error ) { }
+
+  return data;
 }
