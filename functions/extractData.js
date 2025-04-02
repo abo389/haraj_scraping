@@ -1,8 +1,12 @@
 import convertEnglishRelativeTimeToISO from "./convertEnglishRelativeTimeToISO.js";
 
-async function s (s)
+async function s ( selector, page )
 {
-    return await page.evaluate( () => document.querySelector( s )?.textContent );
+  return await page.evaluate( ( selector ) =>
+  {
+    const element = document.querySelector( selector );
+    return element ? element.textContent.trim() : "N/A";
+  }, selector );
 }
 
 const cookie = {
@@ -22,6 +26,7 @@ export default async function extractData ( page, url )
     title: "N/A",
     city: "N/A",
     price: "N/A",
+    url: url,
     tags: [],
     imgs: [],
     reviews: [],
@@ -40,11 +45,11 @@ export default async function extractData ( page, url )
     }
   }
 
-  data.city = await s( 'a > span.city' );
+  data.city = await s( 'a > span.city', page );
   if(data.city === "N/A") return null;
-  data.title = await s( 'h1' );
-  data.price = await s( 'strong.text-text-primary' );
-  data.description.ar = await s( 'article[data-testid="post-article"]' );
+  data.title = await s( 'h1', page );
+  data.price = await s( 'strong.text-text-primary', page );
+  data.description.ar = await s( 'article[data-testid="post-article"]', page );
 
   try
   {

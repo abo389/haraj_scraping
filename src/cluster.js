@@ -1,10 +1,7 @@
-import extractData from '../functions/extractData.js';
-import { Cluster } from 'puppeteer-cluster';
-import fs from 'fs';
-// C:\Program Files\Google\Chrome\Application\chrome.exe
-
-// Read URLs safely
-const urlsFile = './output/urls.json';
+const { default: extractData } = require( '../functions/extractData.js' );
+const { Cluster } = require( 'puppeteer-cluster' );
+const fs = require( 'fs' );
+const urlsFile = './output/urls-11.json';
 let URLS = [];
 
 
@@ -41,7 +38,7 @@ if ( fs.existsSync( urlsFile ) )
       // executablePath: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
       // userDataDir: "C:\\Users\\abdulrahman\\AppData\\Local\\Google\\Chrome\\User Data",
       // args: [ "--profile-directory=Default" ],
-      // headless: false,
+      headless: false,
       defaultViewport: null,
     }
   } );
@@ -78,10 +75,7 @@ if ( fs.existsSync( urlsFile ) )
   } );
 
   // Queue all URLs
-  for ( const url of URLS )
-  {
-    cluster.queue( url );
-  }
+  for ( const url of URLS ) cluster.queue( url );
 
   await cluster.idle();
   await cluster.close();
@@ -91,7 +85,7 @@ if ( fs.existsSync( urlsFile ) )
   {
     fs.writeFileSync( './output/cluster.json', JSON.stringify( items, null, 2 ) );
     console.log( `✅ Successfully saved ${ items.length } extracted items.` );
-    console.log(items.filter(e => e.description_en == 'N/A').length)
+    console.log( 'items without en description: ' + items.filter( e => e.description.en == 'N/A' ).length )
   } else
   {
     console.warn( "⚠️ No items were extracted." );
