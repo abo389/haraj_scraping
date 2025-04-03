@@ -1,5 +1,9 @@
 # Haraj Scraping
 
+
+  [![](https://markdown-videos-api.jorgenkh.no/vimeo/1072021490%2F76ac2e0a67?width=320&height=180&filetype=jpeg)](https://vimeo.com/1072021490/76ac2e0a67)
+
+
 This project is designed to scrape data from the Haraj website, allowing users to extract listings efficiently.
 
 ## Features
