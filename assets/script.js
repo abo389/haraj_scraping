@@ -23,7 +23,6 @@ setTimeout( () =>
 ws.onmessage = ( event ) =>
 {
   const data = JSON.parse( event.data );
-  console.log( data );
 
   // Update status message
   statusMessage.classList.add( 'show' );
