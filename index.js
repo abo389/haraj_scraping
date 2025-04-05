@@ -37,7 +37,10 @@ app.post( '/scrape', async ( req, res ) =>
 
   broadcast( { step: 'start', message: '🚀 Scraping started!', progress: 0 } );
 
-  const browser = await puppeteer.launch( { userDataDir: './tmp' } );
+  const browser = await puppeteer.launch( {
+    userDataDir: './tmp',
+    args: [ '--no-sandbox', '--disable-setuid-sandbox' ],
+  } );
   const page = await browser.newPage();
 
   broadcast( { step: 'extracting_urls', message: '📡 Extracting URLs...', progress: 10 } );
@@ -54,7 +57,15 @@ app.post( '/scrape', async ( req, res ) =>
   broadcast( { step: 'urls_extracted', message: `✅ Extracted ${ urls.length } URLs!`, progress: 20 } );
 
   const items = [];
-  const cluster = await Cluster.launch( { concurrency: Cluster.CONCURRENCY_PAGE, maxConcurrency: 2 } );
+  const cluster = await Cluster.launch(
+    {
+      concurrency: Cluster.CONCURRENCY_PAGE,
+      maxConcurrency: 2,
+      puppeteerOptions: {
+        userDataDir: './tmp',
+        args: [ '--no-sandbox', '--disable-setuid-sandbox' ],
+      },
+    } );
 
   let processed = 0;
   await cluster.task( async ( { page, data: url } ) =>

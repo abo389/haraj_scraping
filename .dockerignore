@@ -1,4 +1,4 @@
 node_modules
+Dockerfile
 tmp
-.prettierrc
 package-lock.json
